@@ -33,12 +33,14 @@ from enum import Enum
 from decimal import Decimal
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+ 
 
 logger = logging.getLogger("flask.app")
 
 # Create the SQLAlchemy object to be initialized later in init_db()
-db = SQLAlchemy()
 
+db = SQLAlchemy()
+ 
 
 def init_db(app):
     """Initialize the SQLAlchemy app"""
@@ -168,6 +170,8 @@ class Product(db.Model):
         db.init_app(app)
         app.app_context().push()
         db.create_all()  # make our sqlalchemy tables
+
+        logger.info("after create_all database")
 
     @classmethod
     def all(cls) -> list:

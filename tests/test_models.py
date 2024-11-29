@@ -27,9 +27,13 @@ import os
 import logging
 import unittest
 from decimal import Decimal
+ 
+
 from service.models import Product, Category, db
 from service import app
 from tests.factories import ProductFactory
+from service.models import DataValidationError
+import random
 
 DATABASE_URI = os.getenv(
     "DATABASE_URI", "postgresql://postgres:postgres@localhost:5432/postgres"
@@ -104,3 +108,193 @@ class TestProductModel(unittest.TestCase):
     #
     # ADD YOUR TEST CASES HERE
     #
+ 
+    def test_read_a_product(self):
+        product = ProductFactory()
+        product.id = None
+        product.create()
+        self.assertIsNotNone(product.id)
+
+        # 
+        found_product = Product.find(product.id)
+        self.assertEqual(found_product.id, product.id)
+        self.assertEqual(found_product.name, product.name)
+        self.assertEqual(found_product.description, product.description)
+        self.assertEqual(found_product.price, product.price)
+ 
+
+    def test_update_invalid_product(self):
+
+        # create a product
+        product = ProductFactory()
+        product.id = None
+        #
+        with self.assertRaises(DataValidationError) as context:
+            product.update()
+       
+ 
+    def test_update_a_product(self):
+
+        # create a product
+        product = ProductFactory()
+        product.id = None
+        product.create()
+        self.assertIsNotNone(product.id)
+
+        # modify desc
+        product.description = "testing"
+        original_id = product.id
+        product.update()
+
+        found_product = Product.find(original_id)
+        self.assertEqual(found_product.id, original_id)
+        self.assertEqual(found_product.description, "testing")
+
+        #  
+        products = Product.all()
+        self.assertEqual(len(products), 1)
+        first_product = products[0]
+        self.assertEqual(first_product.id, original_id)
+        self.assertEqual(first_product.description, "testing")
+ 
+
+    def test_delete_a_product(self):
+        product = ProductFactory()
+        product.id = None
+        product.create()
+        self.assertIsNotNone(product.id)
+        #
+        products = Product.all()
+        self.assertEqual(len(products), 1)
+        #
+        product.delete()
+        #  
+        products = Product.all()
+        self.assertEqual(len(products), 0)
+
+
+    def test_list_all_products(self):
+
+        N = 10
+        for i in range(N):
+            product = ProductFactory()
+            product.create()
+            #
+            products = Product.all()
+            self.assertEqual(len(products), i+1)
+        #
+        products = Product.all()
+        for i in range(N):
+            products[N-i-1].delete()
+            #
+            products = Product.all()
+            self.assertEqual(len(products), N-i-1)
+
+
+    def test_find_product_by_name(self):
+
+        N = 10
+        for i in range(N):
+            product = ProductFactory()
+            product.create()
+
+        products = Product.all()
+        mid_product = products[random.randint(0,N-1)]
+        mid_product_count = len([product for product in products if product.name == mid_product.name])
+        found_products = Product.find_by_name(mid_product.name)
+        self.assertEqual(mid_product_count, found_products.count())
+         
+    
+    def test_find_product_by_category(self):
+
+        N = 10
+        for i in range(N):
+            product = ProductFactory()
+            product.create()
+        
+        products = Product.all()
+        rand_product = products[random.randint(0,N-1)]
+        rand_product_category = rand_product.category
+        #
+        arr_count = len([product for product in products if product.category == rand_product_category])
+        db_found = Product.find_by_category(rand_product_category)
+        #
+        self.assertEqual(db_found.count(), arr_count)
+    
+
+    def test_find_product_by_available(self):
+
+        N = 10
+        for i in range(N):
+            product = ProductFactory()
+            product.create()
+        
+        products = Product.all()
+        rand_product = products[random.randint(0,N-1)]
+        rand_product_available = rand_product.available
+        #
+        arr_count = len([product for product in products if product.available == rand_product_available])
+        db_found = Product.find_by_availability(rand_product_available)
+        #
+        self.assertEqual(db_found.count(), arr_count)
+
+ 
+    #
+    def test_serialize_a_product(self):
+
+        #
+        product_1 = ProductFactory()
+        product_1.create()
+        #
+        product_2 = ProductFactory()
+        product_2.create()
+        #
+        dict_1 = product_1.serialize()
+        #
+        self.assertNotEqual(product_1.name, product_2.name)
+        #
+        deserialize_product = product_2.deserialize(dict_1)
+        self.assertEqual(product_1.name, deserialize_product.name)
+
+        #
+        product_3 = ProductFactory()
+        product_3.create()
+        dict_3 = product_3.serialize()
+        dict_3["available"] = "TRUE"
+        with self.assertRaises(DataValidationError) as context:
+            product_3.deserialize(dict_3)
+
+        #
+        product_4 = ProductFactory()
+        product_4.create()
+        dict_4 = product_4.serialize()
+        dict_4["category"] = "NOT_EXISTS"
+        
+        with self.assertRaises(DataValidationError) as context:
+            t4 = product_4.deserialize(dict_4)
+
+        with self.assertRaises(DataValidationError) as context:
+            t4 = product_4.deserialize(None)
+            t4.name
+
+ 
+    def test_find_product_by_price(self):
+
+        N = 10
+        for i in range(N):
+            product = ProductFactory()
+            product.create()
+        
+        products = Product.all()
+        rand_product = products[random.randint(0,N-1)]
+        rand_product_price = rand_product.price
+        #
+        arr_count = len([product for product in products if product.price == rand_product_price])
+        db_found = Product.find_by_price(str(rand_product_price))
+        #
+        self.assertEqual(db_found.count(), arr_count)
+         
+
+        #
+
+    
